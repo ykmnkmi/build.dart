@@ -11,12 +11,15 @@ import 'package:path/path.dart' as p;
 import '../build_runner_command_line.dart';
 
 class ServeOptions {
+  /// Custom response headers, keyed by lowercase HTTP field name.
+  final Map<String, String> headers;
   final String hostname;
   final bool liveReload;
   final bool logRequests;
   final BuiltList<ServeTarget> serveTargets;
 
   ServeOptions({
+    this.headers = const {},
     required this.hostname,
     required this.liveReload,
     required this.logRequests,
@@ -38,6 +41,22 @@ class ServeOptions {
   }
 
   static ServeOptions parse(BuildRunnerCommandLine commandLine) {
+    final headers = <String, String>{};
+    for (final header in commandLine.headers!) {
+      final colon = header.indexOf(':');
+      final name = colon < 0 ? '' : header.substring(0, colon);
+      final value = colon < 0 ? '' : header.substring(colon + 1);
+      if (_headerName.firstMatch(name)?.end != name.length ||
+          _headerValue.firstMatch(value)?.end != value.length) {
+        throw UsageException(
+          'Invalid --header: expected a valid HTTP header in "Name: value" '
+          'format without control characters.',
+          commandLine.usage,
+        );
+      }
+      headers[name.toLowerCase()] = value.trim();
+    }
+
     final serveTargets = <ServeTarget>[];
     var nextDefaultPort = 8080;
     for (final arg in commandLine.rest) {
@@ -81,6 +100,7 @@ class ServeOptions {
     }
 
     return ServeOptions(
+      headers: Map.unmodifiable(headers),
       hostname: commandLine.hostname!,
       liveReload: commandLine.liveReload!,
       logRequests: commandLine.logRequests!,
@@ -98,3 +118,7 @@ class ServeTarget {
 }
 
 final _defaultWebDirs = const ['web', 'test', 'example', 'benchmark'];
+
+// HTTP field names are tokens; values allow HTAB, visible bytes and obs-text.
+final _headerName = RegExp(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$");
+final _headerValue = RegExp(r'^[\t\x20-\x7e\x80-\xff]*$');

@@ -2,6 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+import 'package:args/command_runner.dart';
+import 'package:build_runner/src/build_runner_command_line.dart';
 import 'package:build_runner/src/commands/serve_options.dart';
 import 'package:built_collection/built_collection.dart';
 import 'package:test/test.dart';
@@ -13,6 +15,60 @@ void main() {
     logRequests: false,
     serveTargets: BuiltList(),
   );
+
+  Future<ServeOptions> parseHeaders(List<String> arguments) async {
+    final commandLine = await BuildRunnerCommandLine.parse([
+      'serve',
+      'web:8080',
+      ...arguments,
+    ]);
+    return ServeOptions.parse(commandLine!);
+  }
+
+  group('headers', () {
+    test('defaults to empty', () async {
+      expect((await parseHeaders([])).headers, isEmpty);
+    });
+
+    test('preserves commas, colons and empty values', () async {
+      final options = await parseHeaders([
+        '--header=Cache-Control: no-cache, no-store',
+        '--header',
+        'X-Endpoint: http://localhost:8080',
+        '--header=X-Empty:',
+      ]);
+      expect(options.headers, {
+        'cache-control': 'no-cache, no-store',
+        'x-endpoint': 'http://localhost:8080',
+        'x-empty': '',
+      });
+    });
+
+    test('last value wins regardless of name case', () async {
+      final options = await parseHeaders([
+        '--header=X-Test: first',
+        '--header=x-test: second',
+      ]);
+      expect(options.headers, {'x-test': 'second'});
+    });
+
+    for (final header in [
+      'Missing colon',
+      ': value',
+      'Bad Name: value',
+      'X-Test : value',
+      'X-Test: value\r\nX-Injected: yes',
+      'X-Test: value\n',
+      'X-Test: value\u0000',
+    ]) {
+      test('rejects ${header.codeUnits}', () async {
+        await expectLater(
+          parseHeaders(['--header=$header']),
+          throwsA(isA<UsageException>()),
+        );
+      });
+    }
+  });
 
   group('ServeOptions', () {
     group('allowedHost', () {

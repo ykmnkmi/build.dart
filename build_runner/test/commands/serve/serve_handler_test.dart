@@ -177,6 +177,75 @@ void main() {
     );
   }
 
+  group('custom response headers', () {
+    test('preserves body and overrides existing headers', () async {
+      addSource('a|web/index.html', 'content');
+      final response = await serveHandler.handlerFor(
+        'web',
+        headers: {'x-test': 'value', 'cache-control': 'no-store'},
+      )(Request('GET', Uri.parse('http://server.com/index.html')));
+      expect(response.headers['x-test'], 'value');
+      expect(response.headers['cache-control'], 'no-store');
+      expect(response.headers['content-type'], 'text/html');
+      expect(response.headers['etag'], isNotNull);
+      expect(await response.readAsString(), 'content');
+    });
+
+    test('includes headers on HEAD, 304 and 404 responses', () async {
+      addSource('a|web/index.html', 'content');
+      final handler = serveHandler.handlerFor(
+        'web',
+        headers: {'x-test': 'value'},
+      );
+      final uri = Uri.parse('http://server.com/index.html');
+      final first = await handler(Request('GET', uri));
+      final etag = first.headers['etag']!;
+      await first.readAsString();
+      final responses = [
+        await handler(Request('HEAD', uri)),
+        await handler(Request('GET', uri, headers: {'if-none-match': etag})),
+        await handler(Request('GET', Uri.parse('http://server.com/missing'))),
+      ];
+      expect(responses.map((r) => r.statusCode), [200, 304, 404]);
+      for (final response in responses) {
+        expect(response.headers['x-test'], 'value');
+        await response.readAsString();
+      }
+    });
+
+    test('includes headers on host rejection responses', () async {
+      final response = await serveHandler.handlerFor(
+        'web',
+        headers: {'x-test': 'value'},
+        restrictToLoopback: true,
+      )(Request('GET', Uri.parse('http://localhost/index.html')));
+      expect(response.statusCode, HttpStatus.forbidden);
+      expect(response.headers['x-test'], 'value');
+    });
+
+    test('works with live reload injection and cache validation', () async {
+      addSource('a|web/main.js', '$entrypointExtensionMarker\nalert(1)');
+      final handler = serveHandler.handlerFor(
+        'web',
+        headers: {'x-test': 'value'},
+        liveReload: true,
+      );
+      final uri = Uri.parse('http://server.com/main.js');
+      final response = await handler(Request('GET', uri));
+      expect(response.headers['x-test'], 'value');
+      expect(await response.readAsString(), contains('live_reload_client'));
+      final cached = await handler(
+        Request(
+          'GET',
+          uri,
+          headers: {'if-none-match': response.headers['etag']!},
+        ),
+      );
+      expect(cached.statusCode, HttpStatus.notModified);
+      expect(cached.headers['x-test'], 'value');
+    });
+  });
+
   test('can get handlers for a subdirectory', () async {
     addSource('a|web/index.html', 'content');
     final response = await serveHandler.handlerFor('web')(
@@ -492,6 +561,15 @@ void main() {
       );
 
       expect(response.statusCode, HttpStatus.ok);
+    });
+
+    test('adds custom headers to failed asset responses', () async {
+      final response = await serveHandler.handlerFor(
+        'web',
+        headers: {'x-test': 'value'},
+      )(Request('GET', Uri.parse('http://server.com/main.ddc.js')));
+      expect(response.statusCode, HttpStatus.internalServerError);
+      expect(response.headers['x-test'], 'value');
     });
 
     test('rejects requests for failed assets', () async {
