@@ -45,6 +45,7 @@ class ServeHandler {
 
   shelf.Handler handlerFor(
     String rootDir, {
+    Map<String, String> headers = const {},
     bool logRequests = false,
     bool liveReload = false,
     bool restrictToLoopback = false,
@@ -74,6 +75,14 @@ class ServeHandler {
       return assetHandler.handle(request, rootDir: rootDir);
     });
     var pipeline = const shelf.Pipeline();
+    if (headers.isNotEmpty) {
+      pipeline = pipeline.addMiddleware(
+        (inner) => (request) async {
+          final response = await inner(request);
+          return response.change(headers: headers);
+        },
+      );
+    }
     if (logRequests) {
       pipeline = pipeline.addMiddleware(_logRequests);
     }

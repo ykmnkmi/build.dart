@@ -140,6 +140,23 @@ flag. This is still experimental and subject to change based on feedback, consid
 giving your own feedback in the
 [discussion forum](https://github.com/dart-lang/build/discussions/4349).
 
+### Serving with custom headers
+
+Use `serve` to continuously build and serve web assets. Add response headers
+with repeatable `--header` options:
+
+```bash
+dart run build_runner serve web:8080 \
+  --header="Cross-Origin-Opener-Policy: same-origin" \
+  --header="Cross-Origin-Embedder-Policy: require-corp"
+```
+
+Headers apply to all served directories and ordinary HTTP responses, including
+HEAD, cache validation and error responses. They override existing response
+headers. Names are case-insensitive; the last value for a name wins. Values may
+contain commas and colons. Invalid names and control characters are rejected.
+WebSocket upgrades used by live reload are handled separately.
+
 ### Output files
 
 Outputs written at their package paths, for example under `lib`, are

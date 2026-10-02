@@ -51,6 +51,7 @@ class BuildRunnerCommandLine {
   final BuiltList<String>? enableExperiments;
   final bool? forceAot;
   final bool? forceJit;
+  final BuiltList<String>? headers;
   final String? hostname;
   final BuiltList<String>? jitVmArgs;
   final bool? liveReload;
@@ -104,6 +105,7 @@ class BuildRunnerCommandLine {
       enableExperiments = argResults.listNamed(enableExperimentOption),
       forceAot = argResults.boolNamed(forceAotOption),
       forceJit = argResults.boolNamed(forceJitOption),
+      headers = argResults.listNamed(headerOption),
       hostname = argResults.stringNamed(hostnameOption),
       jitVmArgs = argResults.listNamed(dartJitVmArgOption),
       liveReload = argResults.boolNamed(liveReloadOption),
@@ -172,6 +174,7 @@ const forceAotOption = 'force-aot';
 const forceJitOption = 'force-jit';
 const dartAotPerfOption = 'dart-aot-perf';
 const dartJitVmArgOption = 'dart-jit-vm-arg';
+const headerOption = 'header';
 const hostnameOption = 'hostname';
 const liveReloadOption = 'live-reload';
 const logRequestsOption = 'log-requests';
@@ -497,6 +500,13 @@ class _Serve extends _Command<BuildRunnerCommandLine> {
       supportWorkspace: false,
     );
     argParser
+      ..addMultiOption(
+        headerOption,
+        splitCommas: false,
+        valueHelp: 'Name: value',
+        help: 'Adds a response header to all served directories. '
+            'Repeat for multiple headers; the last value for a name wins.',
+      )
       ..addOption(
         hostnameOption,
         help: 'Specify the hostname to serve on',

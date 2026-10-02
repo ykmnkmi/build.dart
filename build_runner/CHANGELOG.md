@@ -1,5 +1,7 @@
 ## 2.16.2-wip
 
+- Add repeatable `--header="Name: value"` to `serve` for custom response headers.
+
 - Add `SharedPartAccumulator` and `SharedPartAccumulatorCodec` for shared part
   outputs.
 - Support shared parts written using `BuildStep.librarySourceSink` when builders

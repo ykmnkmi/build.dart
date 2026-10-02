@@ -84,6 +84,7 @@ class ServeCommand implements BuildRunnerCommand {
           server,
           handler.handlerFor(
             target.dir,
+            headers: serveOptions.headers,
             logRequests: serveOptions.logRequests,
             liveReload: serveOptions.liveReload,
             restrictToLoopback: server.address.isLoopback,
